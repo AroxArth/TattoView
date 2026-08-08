@@ -10,6 +10,7 @@ import {
   downloadBlob,
 } from '@/features/tattoo-editor/lib/captureCanvas'
 import { useEditorStore } from '@/features/tattoo-editor/store/editorStore'
+import { messageFor, useT } from '@/i18n'
 
 /** Four views — front, both sides, back — is what a client actually asks for. */
 const TURNTABLE_FRAMES = 4
@@ -30,6 +31,7 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
  * camera and orbit target, and those are only reachable from inside the R3F tree.
  */
 export function CaptureRig() {
+  const t = useT()
   const gl = useThree((s) => s.gl)
   const scene = useThree((s) => s.scene)
   const camera = useThree((s) => s.camera)
@@ -66,7 +68,7 @@ export function CaptureRig() {
             downloadBlob(frame, captureFilename(index))
             await delay(DOWNLOAD_GAP_MS)
           }
-          toast.success(`Saved ${frames.length} views`)
+          toast.success(t('toast.viewsSaved', { count: frames.length }))
           return
         }
 
@@ -74,10 +76,10 @@ export function CaptureRig() {
         if (cancelled) return
 
         downloadBlob(frame, captureFilename())
-        toast.success('Photo saved')
+        toast.success(t('toast.photoSaved'))
       } catch (error) {
         if (!cancelled) {
-          toast.error(error instanceof Error ? error.message : 'Could not capture the view')
+          toast.error(messageFor(t, error, 'error.captureFailed'))
         }
       } finally {
         if (!cancelled) clearCaptureRequest()
@@ -89,7 +91,7 @@ export function CaptureRig() {
     return () => {
       cancelled = true
     }
-  }, [request, background, scale, gl, scene, camera, controls, clearCaptureRequest])
+  }, [request, background, scale, gl, scene, camera, controls, clearCaptureRequest, t])
 
   return null
 }

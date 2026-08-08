@@ -6,6 +6,7 @@ import {
   rasterize,
   removeBackground,
 } from '@/features/tattoo-editor/lib/removeBackground'
+import { useT } from '@/i18n'
 
 /** Edge length of the interactive preview. Keeps the tolerance slider responsive. */
 const PREVIEW_EDGE = 480
@@ -39,6 +40,7 @@ interface DesignPreviewDialogProps {
  * removal before they are usable as a tattoo at all.
  */
 export function DesignPreviewDialog({ file, onAccept, onCancel }: DesignPreviewDialogProps) {
+  const t = useT()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const imageRef = useRef<ImageBitmap | null>(null)
 
@@ -46,7 +48,7 @@ export function DesignPreviewDialog({ file, onAccept, onCancel }: DesignPreviewD
   const [isProcessing, setIsProcessing] = useState(false)
   const [shouldRemoveBackground, setShouldRemoveBackground] = useState(false)
   const [tolerance, setTolerance] = useState(DEFAULT_TOLERANCE)
-  const [error, setError] = useState<string | null>(null)
+  const [hasError, setHasError] = useState<'read' | 'process' | null>(null)
 
   // JPEG carries no alpha channel, so its background is always opaque. Placed
   // as-is it renders a solid rectangle on the skin rather than a tattoo.
@@ -67,11 +69,11 @@ export function DesignPreviewDialog({ file, onAccept, onCancel }: DesignPreviewD
         }
         bitmap = decoded
         imageRef.current = decoded
-        setError(null)
+        setHasError(null)
         setIsReady(true)
       })
       .catch(() => {
-        if (!cancelled) setError('That file could not be read as an image.')
+        if (!cancelled) setHasError('read')
       })
 
     return () => {
@@ -119,7 +121,7 @@ export function DesignPreviewDialog({ file, onAccept, onCancel }: DesignPreviewD
         aspect: processed.width / processed.height,
       })
     } catch {
-      setError('The image could not be processed.')
+      setHasError('process')
       setIsProcessing(false)
     }
   }
@@ -129,18 +131,18 @@ export function DesignPreviewDialog({ file, onAccept, onCancel }: DesignPreviewD
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
       role="dialog"
       aria-modal="true"
-      aria-label="Design preview"
+      aria-label={t('preview.title')}
     >
       <div className="flex w-full max-w-md flex-col gap-4 rounded-xl border border-ink-700 bg-ink-900 p-5">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <h2 className="text-base font-semibold">Design preview</h2>
+            <h2 className="text-base font-semibold">{t('preview.title')}</h2>
             <p className="truncate text-xs text-ink-400">{file.name}</p>
           </div>
           <button
             type="button"
             onClick={onCancel}
-            aria-label="Close"
+            aria-label={t('common.close')}
             className="text-ink-400 transition hover:text-white"
           >
             <X size={18} />
@@ -157,8 +159,10 @@ export function DesignPreviewDialog({ file, onAccept, onCancel }: DesignPreviewD
             backgroundPosition: '0 0, 0 8px, 8px -8px, -8px 0px',
           }}
         >
-          {error ? (
-            <p className="text-xs text-red-400">{error}</p>
+          {hasError ? (
+            <p className="text-xs text-red-400">
+              {t(hasError === 'read' ? 'error.readImage' : 'error.processImage')}
+            </p>
           ) : (
             <canvas ref={canvasRef} className="max-h-56 max-w-full object-contain" />
           )}
@@ -167,10 +171,7 @@ export function DesignPreviewDialog({ file, onAccept, onCancel }: DesignPreviewD
         {lacksAlpha && (
           <p className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
             <AlertTriangle size={14} className="mt-px shrink-0" />
-            <span>
-              JPEG has no transparency. Without removing the background this design will be
-              placed as a solid rectangle on the skin.
-            </span>
+            <span>{t('preview.jpegWarning')}</span>
           </p>
         )}
 
@@ -182,13 +183,13 @@ export function DesignPreviewDialog({ file, onAccept, onCancel }: DesignPreviewD
             className="size-4 accent-accent"
           />
           <Eraser size={15} className="text-ink-400" />
-          Remove background
+          {t('preview.removeBackground')}
         </label>
 
         {shouldRemoveBackground && (
           <label className="flex flex-col gap-1.5 text-xs">
             <span className="flex justify-between text-ink-400">
-              Tolerance
+              {t('preview.tolerance')}
               <span>{Math.round(tolerance * 100)}%</span>
             </span>
             <input
@@ -200,10 +201,7 @@ export function DesignPreviewDialog({ file, onAccept, onCancel }: DesignPreviewD
               onChange={(event) => setTolerance(Number(event.target.value))}
               className="accent-accent"
             />
-            <span className="text-ink-400">
-              Raise it until the background is gone. Lower it if the design starts
-              disappearing.
-            </span>
+            <span className="text-ink-400">{t('preview.toleranceHint')}</span>
           </label>
         )}
 
@@ -213,16 +211,16 @@ export function DesignPreviewDialog({ file, onAccept, onCancel }: DesignPreviewD
             onClick={onCancel}
             className="flex-1 rounded-lg border border-ink-700 px-4 py-2.5 text-sm transition hover:bg-ink-800"
           >
-            Cancel
+            {t('preview.cancel')}
           </button>
           <button
             type="button"
             onClick={handleAccept}
-            disabled={!isReady || isProcessing || Boolean(error)}
+            disabled={!isReady || isProcessing || hasError !== null}
             className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white transition hover:brightness-110 disabled:opacity-50"
           >
             <Check size={16} />
-            {isProcessing ? 'Processing…' : 'Accept'}
+            {isProcessing ? t('preview.processing') : t('preview.accept')}
           </button>
         </div>
       </div>

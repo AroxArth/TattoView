@@ -9,8 +9,10 @@ import {
   SESSION_FILE_EXTENSION,
 } from '@/features/tattoo-editor/lib/sessionFile'
 import { currentDocument, useEditorStore } from '@/features/tattoo-editor/store/editorStore'
+import { messageFor, useT } from '@/i18n'
 
 export function SessionActions() {
+  const t = useT()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isBusy, setIsBusy] = useState(false)
 
@@ -26,9 +28,9 @@ export function SessionActions() {
     try {
       const session = await serializeSession(currentDocument())
       downloadSession(session, `tattooview-session${SESSION_FILE_EXTENSION}`)
-      toast.success('Session saved — send that file to share it')
+      toast.success(t('toast.sessionSaved'))
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Could not save the session')
+      toast.error(messageFor(t, error, 'error.sessionSave'))
     } finally {
       setIsBusy(false)
     }
@@ -38,9 +40,9 @@ export function SessionActions() {
     setIsBusy(true)
     try {
       loadDocument(await parseSession(await file.text()))
-      toast.success('Session loaded')
+      toast.success(t('toast.sessionLoaded'))
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Could not open that session')
+      toast.error(messageFor(t, error, 'error.sessionOpen'))
     } finally {
       setIsBusy(false)
     }
@@ -53,21 +55,21 @@ export function SessionActions() {
           type="button"
           onClick={undo}
           disabled={!canUndo}
-          title="Undo (Ctrl+Z)"
+          title={t('session.undoTitle')}
           className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-ink-700 px-3 py-2 text-xs transition hover:border-accent hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
         >
           <Undo2 size={13} />
-          Undo
+          {t('session.undo')}
         </button>
         <button
           type="button"
           onClick={redo}
           disabled={!canRedo}
-          title="Redo (Ctrl+Y)"
+          title={t('session.redoTitle')}
           className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-ink-700 px-3 py-2 text-xs transition hover:border-accent hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
         >
           <Redo2 size={13} />
-          Redo
+          {t('session.redo')}
         </button>
       </div>
 
@@ -91,7 +93,7 @@ export function SessionActions() {
           className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-ink-700 px-3 py-2 text-xs transition hover:border-accent hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
         >
           <Save size={13} />
-          Save session
+          {t('session.save')}
         </button>
         <button
           type="button"
@@ -100,7 +102,7 @@ export function SessionActions() {
           className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-ink-700 px-3 py-2 text-xs transition hover:border-accent hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
         >
           <FolderOpen size={13} />
-          Open
+          {t('session.open')}
         </button>
       </div>
     </section>

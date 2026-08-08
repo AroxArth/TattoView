@@ -1,0 +1,55 @@
+change: mirror-and-localization
+artifact_store: openspec
+execution_mode: auto
+delivery_strategy: ask-on-risk
+created: 2026-08-07
+
+phases:
+  explore:
+    status: skipped
+    note: >-
+      Scope came directly from the user. The only real investigation was whether a
+      negative decal scale could mirror a design; reading DecalGeometry showed it
+      consumes the scale to build the projector box, which settled it.
+  proposal:
+    status: done
+    artifact: proposal.md
+  specs:
+    status: done
+    artifact: specs/tattoo-editor/spec.md
+  design:
+    status: skipped
+    note: >-
+      Decisions live as file headers beside the code they constrain — dictionary.ts,
+      i18n/index.ts, model-labels.ts, and the mirror comment in TattooDecal.tsx.
+  tasks:
+    status: done
+    artifact: tasks.md
+  apply:
+    status: done
+    note: >-
+      Mirror and full Spanish-first localization implemented. TypeScript's
+      erasableSyntaxOnly rejected a constructor parameter property on
+      TranslatedError; rewritten as an explicit field.
+  verify:
+    status: partial
+    note: >-
+      build, lint, verify:model, verify:shader and the new verify:i18n all pass.
+      verify:i18n was validated by deliberately introducing a placeholder mismatch
+      and a missing key — it caught both plus the derived-key failure and exited 1.
+      Visual confirmation is outstanding; the user runs the dev server themselves.
+  archive:
+    status: pending
+
+next_recommended: verify
+
+blockers: []
+
+open_questions:
+  - >-
+    Should the language toggle sit at the top of the panel instead of beside the
+    credits? It is currently in the footer, which is discoverable but not the first
+    thing an English speaker sees.
+  - >-
+    Does mirroring need to be visible in the design list, so a mirrored design is
+    identifiable without selecting it?

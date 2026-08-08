@@ -18,6 +18,7 @@
  */
 export interface SkinTone {
   id: string
+  /** Developer-facing; the shown text is `skinToneLabelKey(id)`. */
   label: string
   /** Linear-space RGB multiplier over the model's albedo texture. */
   tint: [number, number, number]

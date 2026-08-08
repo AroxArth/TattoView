@@ -19,6 +19,7 @@
  * self-contained — a session that only works on the machine that made it would be
  * pointless.
  */
+import { TranslatedError } from '@/i18n'
 import type { EditorDocument, TattooDesign } from '@/features/tattoo-editor/store/editorStore'
 
 const FORMAT = 'tattooview.session'
@@ -36,6 +37,7 @@ interface SerializedDesign {
   widthUnits: number
   opacity: number
   inkDepth: number
+  mirrored: boolean
   isPlaced: boolean
   /** The design itself, as a data URL. Keeps the file self-contained. */
   texture: string
@@ -55,7 +57,7 @@ function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => resolve(reader.result as string)
-    reader.onerror = () => reject(new Error('Could not encode a design texture'))
+    reader.onerror = () => reject(new TranslatedError('error.encodeTexture'))
     reader.readAsDataURL(blob)
   })
 }
@@ -84,6 +86,7 @@ export async function serializeSession(document: EditorDocument): Promise<Sessio
       widthUnits: design.widthUnits,
       opacity: design.opacity,
       inkDepth: design.inkDepth,
+      mirrored: design.mirrored,
       isPlaced: design.isPlaced,
       texture: await urlToDataUrl(design.textureUrl),
     })),
@@ -148,25 +151,25 @@ export async function parseSession(text: string): Promise<EditorDocument> {
   try {
     raw = JSON.parse(text)
   } catch {
-    throw new Error('That file is not a TattooView session')
+    throw new TranslatedError('error.notASession')
   }
 
   if (typeof raw !== 'object' || raw === null) {
-    throw new Error('That file is not a TattooView session')
+    throw new TranslatedError('error.notASession')
   }
 
   const session = raw as Record<string, unknown>
-  if (session.format !== FORMAT) throw new Error('That file is not a TattooView session')
+  if (session.format !== FORMAT) throw new TranslatedError('error.notASession')
   if (typeof session.version !== 'number' || session.version > VERSION) {
-    throw new Error('This session was saved by a newer version of TattooView')
+    throw new TranslatedError('error.newerVersion')
   }
   if (typeof session.modelId !== 'string' || !Array.isArray(session.designs)) {
-    throw new Error('This session file is incomplete')
+    throw new TranslatedError('error.incompleteSession')
   }
 
   const valid = session.designs.filter(isSerializedDesign)
   if (valid.length !== session.designs.length) {
-    throw new Error('This session file has damaged designs')
+    throw new TranslatedError('error.damagedDesigns')
   }
 
   const designs: TattooDesign[] = await Promise.all(
@@ -180,8 +183,9 @@ export async function parseSession(text: string): Promise<EditorDocument> {
       roll: design.roll,
       widthUnits: design.widthUnits,
       opacity: design.opacity,
-      // Written by sessions saved before ink depth existed.
+      // Defaults cover sessions saved before these fields existed.
       inkDepth: typeof design.inkDepth === 'number' ? design.inkDepth : 0.55,
+      mirrored: design.mirrored === true,
       isPlaced: design.isPlaced,
     })),
   )

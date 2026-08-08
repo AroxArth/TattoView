@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "prepare:model": "node scripts/prepare-model.mjs",
     "verify:model": "node scripts/verify-model.mjs",
-    "verify:shader": "node scripts/verify-shader.mjs"
+    "verify:shader": "node scripts/verify-shader.mjs",
+    "verify:i18n": "node scripts/verify-i18n.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.8",

@@ -11,8 +11,10 @@ import { TattooDecal } from '@/features/tattoo-editor/components/TattooDecal'
 import { GROUND_SHADOW_NAME } from '@/features/tattoo-editor/lib/captureCanvas'
 import { findDesignAtPoint, surfaceHit } from '@/features/tattoo-editor/lib/surfacePlacement'
 import { useEditorStore } from '@/features/tattoo-editor/store/editorStore'
+import { useT } from '@/i18n'
 
 function Scene() {
+  const t = useT()
   const designs = useEditorStore((s) => s.designs)
   const selectedId = useEditorStore((s) => s.selectedId)
   const isPlacing = useEditorStore((s) => s.isPlacing)
@@ -67,9 +69,9 @@ function Scene() {
 
       selectDesign(grabbed.id)
       setDragging(true)
-      toast.info('Move the pointer to reposition · click to drop · Esc to cancel')
+      toast.info(t('toast.moveHint'))
     },
-    [designs, isPlacing, selectDesign, setDragging],
+    [designs, isPlacing, selectDesign, setDragging, t],
   )
 
   const handlePointerDown = useCallback(
@@ -89,9 +91,9 @@ function Scene() {
       event.stopPropagation()
 
       placeSelected(hit.position, hit.normal)
-      toast.success('Design placed — double click it to move it')
+      toast.success(t('toast.placed'))
     },
-    [isDragging, isPlacing, placeSelected, setDragging],
+    [isDragging, isPlacing, placeSelected, setDragging, t],
   )
 
   const handlePointerMove = useCallback(
@@ -141,9 +143,11 @@ function Scene() {
 }
 
 function LoadingIndicator() {
+  const t = useT()
+
   return (
     <Html center>
-      <span className="text-xs text-ink-400">Loading model…</span>
+      <span className="text-xs text-ink-400">{t('canvas.loading')}</span>
     </Html>
   )
 }

@@ -13,6 +13,7 @@
 import { Color, Spherical, Vector3 } from 'three'
 import type { Camera, Scene, WebGLRenderer } from 'three'
 
+import { TranslatedError } from '@/i18n'
 import type { CaptureBackground } from '@/features/tattoo-editor/store/editorStore'
 
 /** Matches the editor's own backdrop, so "studio" reproduces what is on screen. */
@@ -80,7 +81,7 @@ function toBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => {
       if (blob) resolve(blob)
-      else reject(new Error('The browser could not encode the frame'))
+      else reject(new TranslatedError('error.encodeFrame'))
     }, 'image/png')
   })
 }

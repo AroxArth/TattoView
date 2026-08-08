@@ -10,10 +10,15 @@
  */
 export interface BodyModelEntry {
   id: string
+  /**
+   * Developer-facing name. What the user reads comes from the dictionary via
+   * `modelLabelKey(id)` — this one shows up in consoles and session files and
+   * should not shift with the UI language.
+   */
   label: string
   /** Path under public/, produced by `pnpm prepare:model`. */
   url: string
-  /** What the calibration measurement refers to, shown next to the input. */
+  /** Developer-facing; the shown text is `modelMeasurementKey(id)`. */
   measurementLabel: string
   defaultReferenceCm: number
   attribution: {

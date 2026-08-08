@@ -32,6 +32,14 @@ export interface TattooDesign {
   opacity: number
   /** How deep the pigment sits, 0..1. Drives desaturation and the dermis tint. */
   inkDepth: number
+  /**
+   * Flips the design horizontally.
+   *
+   * Applied as a UV transform on the texture rather than a negative decal scale:
+   * `DecalGeometry` uses the scale to build its projector box, and a negative axis
+   * there inverts the projection itself rather than the artwork on it.
+   */
+  mirrored: boolean
   /** False until the user has clicked the model to anchor it. */
   isPlaced: boolean
 }
@@ -103,7 +111,9 @@ interface EditorState extends EditorDocument {
     normal: [number, number, number],
   ) => void
   updateSelected: (
-    patch: Partial<Pick<TattooDesign, 'widthUnits' | 'opacity' | 'roll' | 'inkDepth'>>,
+    patch: Partial<
+      Pick<TattooDesign, 'widthUnits' | 'opacity' | 'roll' | 'inkDepth' | 'mirrored'>
+    >,
   ) => void
   setModelLengthUnits: (length: number) => void
   setReferenceLengthCm: (cm: number | null) => void
@@ -223,6 +233,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
             widthUnits: 0.25,
             opacity: 0.9,
             inkDepth: 0.55,
+            mirrored: false,
             isPlaced: false,
           },
         ],
@@ -261,13 +272,21 @@ export const useEditorStore = create<EditorState>((set, get) => {
         `move:${id}`,
       ),
 
-    updateSelected: (patch) =>
+    updateSelected: (patch) => {
+      const keys = Object.keys(patch)
+
+      // Merging exists for sliders, which emit a burst of values on one gesture.
+      // A discrete toggle is a whole decision per click: collapsing two of them
+      // into one entry makes the first Ctrl+Z look like it did nothing.
+      const isDiscrete = keys.includes('mirrored')
+
       commit(
         (state) => ({
           designs: state.designs.map((d) => (d.id === state.selectedId ? { ...d, ...patch } : d)),
         }),
-        `adjust:${get().selectedId}:${Object.keys(patch).join(',')}`,
-      ),
+        isDiscrete ? undefined : `adjust:${get().selectedId}:${keys.join(',')}`,
+      )
+    },
 
     setModelLengthUnits: (length) => set({ modelLengthUnits: length }),
 

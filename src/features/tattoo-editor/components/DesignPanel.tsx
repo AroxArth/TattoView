@@ -1,15 +1,23 @@
 import { useRef, useState } from 'react'
-import { Crosshair, ImagePlus, Ruler, Trash2 } from 'lucide-react'
+import { Crosshair, FlipHorizontal2, ImagePlus, Ruler, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { ModelCredits } from '@/features/body-model/components/ModelCredits'
 import { BODY_MODELS, getModel } from '@/features/body-model/model-catalog'
+import {
+  modelLabelKey,
+  modelMeasurementKey,
+  skinToneLabelKey,
+} from '@/features/body-model/model-labels'
 import { SKIN_TONES } from '@/features/body-model/skin-tones'
 import { CapturePanel } from '@/features/tattoo-editor/components/CapturePanel'
 import { DesignPreviewDialog } from '@/features/tattoo-editor/components/DesignPreviewDialog'
 import type { AcceptedDesign } from '@/features/tattoo-editor/components/DesignPreviewDialog'
 import { SessionActions } from '@/features/tattoo-editor/components/SessionActions'
+import { LanguageToggle } from '@/features/tattoo-editor/components/LanguageToggle'
 import { useCmPerUnit, useEditorStore } from '@/features/tattoo-editor/store/editorStore'
+import { useT } from '@/i18n'
+import type { TranslationKey } from '@/i18n'
 
 const ACCEPTED_TYPES = ['image/png', 'image/webp', 'image/jpeg']
 
@@ -19,6 +27,13 @@ const ACCEPTED_TYPES = ['image/png', 'image/webp', 'image/jpeg']
  */
 const BASE_SKIN_RGB = [206, 158, 126]
 
+/** Names the depth slider's position, so the number means something to a client. */
+function depthLabelKey(depth: number): TranslationKey {
+  if (depth < 0.34) return 'depth.fresh'
+  if (depth < 0.7) return 'depth.healed'
+  return 'depth.settled'
+}
+
 function swatchColor(tint: [number, number, number]): string {
   const channels = BASE_SKIN_RGB.map((channel, index) =>
     Math.round(Math.min(255, channel * tint[index])),
@@ -27,6 +42,7 @@ function swatchColor(tint: [number, number, number]): string {
 }
 
 export function DesignPanel() {
+  const t = useT()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [pendingFile, setPendingFile] = useState<File | null>(null)
 
@@ -51,7 +67,7 @@ export function DesignPanel() {
 
   function handleFile(file: File) {
     if (!ACCEPTED_TYPES.includes(file.type)) {
-      toast.error('Use a PNG, WebP or JPEG file')
+      toast.error(t('toast.uploadFormat'))
       return
     }
     setPendingFile(file)
@@ -60,7 +76,7 @@ export function DesignPanel() {
   function handleAccept(design: AcceptedDesign) {
     addDesign({ id: crypto.randomUUID(), ...design })
     setPendingFile(null)
-    toast.info('Now click the model to place the design')
+    toast.info(t('toast.clickToPlace'))
   }
 
   const widthCm = selected && cmPerUnit ? selected.widthUnits * cmPerUnit : null
@@ -78,11 +94,11 @@ export function DesignPanel() {
 
       <header>
         <h1 className="text-lg font-semibold tracking-tight">TattooView</h1>
-        <p className="text-xs text-ink-400">3D tattoo preview</p>
+        <p className="text-xs text-ink-400">{t('app.subtitle')}</p>
       </header>
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-xs font-medium uppercase tracking-wide text-ink-400">Body part</h2>
+        <h2 className="text-xs font-medium uppercase tracking-wide text-ink-400">{t('panel.bodyPart')}</h2>
         <div className="grid grid-cols-2 gap-2">
           {BODY_MODELS.map((entry) => (
             <button
@@ -95,22 +111,22 @@ export function DesignPanel() {
                   : 'border-ink-700 text-ink-400 hover:text-white'
               }`}
             >
-              {entry.label}
+              {t(modelLabelKey(entry.id))}
             </button>
           ))}
         </div>
       </section>
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-xs font-medium uppercase tracking-wide text-ink-400">Skin tone</h2>
+        <h2 className="text-xs font-medium uppercase tracking-wide text-ink-400">{t('panel.skinTone')}</h2>
         <div className="flex gap-1.5">
           {SKIN_TONES.map((tone) => (
             <button
               key={tone.id}
               type="button"
               onClick={() => setSkinToneId(tone.id)}
-              title={tone.label}
-              aria-label={tone.label}
+              title={t(skinToneLabelKey(tone.id))}
+              aria-label={t(skinToneLabelKey(tone.id))}
               aria-pressed={tone.id === skinToneId}
               className={`h-7 flex-1 rounded-md border transition ${
                 tone.id === skinToneId
@@ -142,19 +158,19 @@ export function DesignPanel() {
           className="flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white transition hover:brightness-110"
         >
           <ImagePlus size={16} />
-          Upload design
+          {t('panel.upload')}
         </button>
         {isPlacing && (
           <p className="flex items-center gap-1.5 text-xs text-accent">
             <Crosshair size={13} />
-            Click the model to place it
+            {t('panel.placeHint')}
           </p>
         )}
       </section>
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-xs font-medium uppercase tracking-wide text-ink-400">Designs</h2>
-        {designs.length === 0 && <p className="text-xs text-ink-400">No designs yet.</p>}
+        <h2 className="text-xs font-medium uppercase tracking-wide text-ink-400">{t('panel.designs')}</h2>
+        {designs.length === 0 && <p className="text-xs text-ink-400">{t('panel.noDesigns')}</p>}
         {designs.map((design) => (
           <div
             key={design.id}
@@ -172,7 +188,7 @@ export function DesignPanel() {
             <button
               type="button"
               onClick={() => setPlacing(true)}
-              title="Reposition"
+              title={t('panel.reposition')}
               className="text-ink-400 transition hover:text-white"
             >
               <Crosshair size={14} />
@@ -180,7 +196,7 @@ export function DesignPanel() {
             <button
               type="button"
               onClick={() => removeDesign(design.id)}
-              title="Remove"
+              title={t('panel.remove')}
               className="text-ink-400 transition hover:text-red-400"
             >
               <Trash2 size={14} />
@@ -191,11 +207,11 @@ export function DesignPanel() {
 
       {selected && (
         <section className="flex flex-col gap-4 border-t border-ink-700 pt-4">
-          <h2 className="text-xs font-medium uppercase tracking-wide text-ink-400">Adjust</h2>
+          <h2 className="text-xs font-medium uppercase tracking-wide text-ink-400">{t('panel.adjust')}</h2>
 
           <label className="flex flex-col gap-1.5 text-xs">
             <span className="flex justify-between text-ink-400">
-              Size
+              {t('adjust.size')}
               <span>{widthCm ? `${widthCm.toFixed(1)} × ${heightCm?.toFixed(1)} cm` : '—'}</span>
             </span>
             <input
@@ -211,7 +227,7 @@ export function DesignPanel() {
 
           <label className="flex flex-col gap-1.5 text-xs">
             <span className="flex justify-between text-ink-400">
-              Rotation
+              {t('adjust.rotation')}
               <span>{Math.round((selected.roll * 180) / Math.PI)}°</span>
             </span>
             <input
@@ -225,9 +241,26 @@ export function DesignPanel() {
             />
           </label>
 
+          <div className="flex flex-col gap-1.5 text-xs">
+            <button
+              type="button"
+              onClick={() => updateSelected({ mirrored: !selected.mirrored })}
+              aria-pressed={selected.mirrored}
+              className={`flex items-center justify-center gap-2 rounded-lg border px-3 py-2 transition ${
+                selected.mirrored
+                  ? 'border-accent bg-ink-800 text-white'
+                  : 'border-ink-700 text-ink-400 hover:text-white'
+              }`}
+            >
+              <FlipHorizontal2 size={14} />
+              {t('adjust.mirror')}
+            </button>
+            <span className="text-[11px] leading-snug text-ink-400">{t('adjust.mirrorHint')}</span>
+          </div>
+
           <label className="flex flex-col gap-1.5 text-xs">
             <span className="flex justify-between text-ink-400">
-              Ink density
+              {t('adjust.density')}
               <span>{Math.round(selected.opacity * 100)}%</span>
             </span>
             <input
@@ -243,8 +276,8 @@ export function DesignPanel() {
 
           <label className="flex flex-col gap-1.5 text-xs">
             <span className="flex justify-between text-ink-400">
-              Ink depth
-              <span>{selected.inkDepth < 0.34 ? 'Fresh' : selected.inkDepth < 0.7 ? 'Healed' : 'Settled'}</span>
+              {t('adjust.depth')}
+              <span>{t(depthLabelKey(selected.inkDepth))}</span>
             </span>
             <input
               type="range"
@@ -255,10 +288,7 @@ export function DesignPanel() {
               onChange={(e) => updateSelected({ inkDepth: Number(e.target.value) })}
               className="accent-accent"
             />
-            <span className="text-[11px] leading-snug text-ink-400">
-              How far the pigment sits under the epidermis. Deeper ink loses saturation and shifts
-              toward blue-grey, the way healed work does.
-            </span>
+            <span className="text-[11px] leading-snug text-ink-400">{t('adjust.depthHint')}</span>
           </label>
         </section>
       )}
@@ -270,10 +300,10 @@ export function DesignPanel() {
       <section className="mt-auto flex flex-col gap-2 border-t border-ink-700 pt-4">
         <h2 className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-ink-400">
           <Ruler size={13} />
-          Calibration
+          {t('panel.calibration')}
         </h2>
         <label className="flex flex-col gap-1.5 text-xs text-ink-400">
-          {model.measurementLabel} (cm)
+          {t('calibration.field', { measurement: t(modelMeasurementKey(model.id)) })}
           <input
             type="number"
             min={1}
@@ -286,12 +316,11 @@ export function DesignPanel() {
           />
         </label>
         {!cmPerUnit && (
-          <p className="text-xs text-ink-400">
-            Enter a real measurement to convert design size into centimetres.
-          </p>
+          <p className="text-xs text-ink-400">{t('calibration.hint')}</p>
         )}
-        <div className="pt-2">
+        <div className="flex items-center justify-between gap-2 pt-2">
           <ModelCredits />
+          <LanguageToggle />
         </div>
       </section>
     </aside>

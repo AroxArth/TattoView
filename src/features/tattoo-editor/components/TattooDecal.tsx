@@ -44,6 +44,25 @@ export function TattooDecal({ design }: TattooDecalProps) {
     texture.needsUpdate = true
   }, [texture])
 
+  /**
+   * Mirroring is a UV transform, not a negative decal scale.
+   *
+   * `DecalGeometry` consumes the scale to build its projector box, so a negative
+   * axis there flips the projection itself — the artwork lands inverted AND the
+   * clipped geometry is built inside out. Flipping the texture's own u instead
+   * leaves the projection untouched and only reverses the image on it.
+   *
+   * `uv' = u * repeat + offset`, so repeat -1 with offset 1 maps u to 1 - u.
+   * Mutating the texture is safe: every design owns a unique object URL, so
+   * useTexture's per-url cache is never shared between two designs. No
+   * `needsUpdate` needed — three calls `updateMatrix()` each frame while
+   * `matrixAutoUpdate` is on.
+   */
+  useMemo(() => {
+    texture.repeat.x = design.mirrored ? -1 : 1
+    texture.offset.x = design.mirrored ? 1 : 0
+  }, [texture, design.mirrored])
+
   const rotation = useMemo(
     () => decalRotation(design.normal, design.roll),
     [design.normal, design.roll],
