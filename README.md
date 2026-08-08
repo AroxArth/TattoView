@@ -15,13 +15,15 @@ pnpm dev
 
 Then, in the app:
 
-1. Pick a body part (**Forearm** or **Full arm**).
-2. **Add design** → a preview dialog opens. Toggle background removal if your file has one, then Accept.
+1. Pick a body part (**Forearm** or **Full arm**) and a **skin tone**.
+2. **Upload design** → a preview dialog opens. Toggle background removal if your file has one, then Accept.
 3. Click on the skin to anchor the tattoo.
-4. Adjust size, opacity and rotation in the left panel.
+4. Adjust size, rotation, ink density and ink depth in the left panel.
 5. Enter your real measurement (e.g. elbow-to-fingertips in cm) to see the tattoo's true size.
+6. **Photo** → pick a backdrop and save the view, or four angles at once.
+7. **Save session** → one file with the placement and the artwork inside, to send to your artist.
 
-Viewport controls: **double click** a tattoo to grab it, move the pointer, click again to drop (Escape cancels). Drag the skin to orbit, scroll to zoom.
+Viewport controls: **double click** a tattoo to grab it, move the pointer, click again to drop (Escape cancels). Drag the skin to orbit, scroll to zoom. **Ctrl+Z** / **Ctrl+Y** undo and redo.
 
 ---
 
@@ -57,6 +59,28 @@ A surface normal fixes only two of the three rotational degrees of freedom. `Obj
 
 Designs are therefore stored as `normal` + `roll`, never as a baked euler: the normal comes from the surface and changes on move, the roll is the user's choice and must stay independent.
 
+### Ink lives under the skin, not on it
+
+A tattoo is pigment in the dermis with living tissue still on top of it. Three things follow, and none of them can be faked by lowering a texture's opacity:
+
+- **Ink only ever subtracts light.** A tattoo can never be brighter than the skin around it. So the decal is a **multiply blend** against the already-rendered skin, not a lit surface drawn over it.
+- **Multiplying against lit skin means the ink inherits the shading for free** — shadows, falloff, the lot. No second lighting pass, and no way for the artwork to float above the limb.
+- **Tissue above the pigment scatters light**, so buried ink loses saturation and its blacks shift toward blue-grey. That is the **Ink depth** slider.
+
+The warmth you see in the result comes from the multiply against warm skin, not from tinting the ink warm — tint both and black work turns muddy brown.
+
+[inkMaterial.ts](src/features/tattoo-editor/lib/inkMaterial.ts) holds the whole model. Three material flags are a package and must move together:
+
+| Flag | Why |
+|---|---|
+| `blending={MultiplyBlending}` | the blend itself |
+| `premultipliedAlpha` | three **refuses** to set a blend function for `MultiplyBlending` without it — it logs an error and silently leaves blending unset |
+| `toneMapped={false}` | ACES maps 1.0 to ~0.8, so tone mapping a multiply factor would grey out the whole limb through every transparent texel |
+
+The shader writes raw ink in `.rgb` and coverage in `.a`; three's own `premultiplied_alpha_fragment` runs *after* the colour-space conversion, which is what makes this a Photoshop-style multiply in display space rather than a linear one.
+
+**Known consequence:** a multiply cannot lighten. White and very pale ink are invisible against skin. That is physically honest — white ink barely shows on real skin either — but it will surprise anyone expecting a sticker preview.
+
 ### Grazing-angle fade
 
 `DecalGeometry` is a **box projection** — the texture is cast along one axis like a slide projector. Where the surface turns away from that axis, each texel covers more skin and the artwork smears; at 90° the stretch is infinite. This is projection maths, **not polygon count** — it happens identically at 3.5k triangles and at 3M.
@@ -65,6 +89,20 @@ Designs are therefore stored as `normal` + `roll`, never as a baked euler: the n
 
 - `customProgramCacheKey` is **mandatory** — three caches programs by material parameters and ignores `onBeforeCompile`. Without a distinct key the decal and the skin (also a `MeshStandardMaterial`) can share one compiled program.
 - The material must stay `transparent`. `opaque_fragment` resets `diffuseColor.a = 1.0` under `#ifdef OPAQUE`, which would erase the fade.
+
+### Skin tone tints, it does not replace
+
+[skin-tones.ts](src/features/body-model/skin-tones.ts) stores **linear multipliers** applied to the model's albedo texture through `material.color`. Multiplying keeps the pores, veins and painted shading of the source texture; a flat replacement colour produces a plastic mannequin. Values above 1 are legitimate — the source texture is a mid tone, so the lighter entries have to scale it up.
+
+The material is **cloned** before tinting. `useGLTF` caches the scene globally, so tinting in place would leak the tone into every other mount and survive a model switch.
+
+### Undo frees textures by reachability, not by lifecycle
+
+Deleting a design used to revoke its object URL immediately. Correct right up until undo exists — the history still holds a snapshot pointing at that URL, so undoing the delete would restore a design whose texture had already been destroyed. A blank tattoo, and nothing in the console to explain it.
+
+So [textureRegistry.ts](src/features/tattoo-editor/lib/textureRegistry.ts) revokes a URL only once no snapshot in the past, present or future references it — exactly when the user can no longer reach it by any sequence of undo or redo. History is bounded at 60 entries, which bounds the leak.
+
+Slider and pointer drags collapse into a single history entry via a merge key, so one drag of the size slider is one Ctrl+Z, not a hundred.
 
 ### Calibration returns null, never a guess
 
@@ -86,12 +124,16 @@ src/
     body-model/
       components/   BodyModel.tsx, ModelCredits.tsx
       lib/          normalizeGeometry.ts
-      model-catalog.ts
+      model-catalog.ts, skin-tones.ts
     tattoo-editor/
-      components/   EditorCanvas.tsx, DesignPanel.tsx, TattooDecal.tsx, DesignPreviewDialog.tsx
-      lib/          surfacePlacement.ts, removeBackground.ts
+      components/   EditorCanvas.tsx, DesignPanel.tsx, TattooDecal.tsx,
+                    DesignPreviewDialog.tsx, CapturePanel.tsx, CaptureRig.tsx,
+                    SessionActions.tsx
+      hooks/        useHistoryShortcuts.ts
+      lib/          surfacePlacement.ts, inkMaterial.ts, removeBackground.ts,
+                    captureCanvas.ts, sessionFile.ts, textureRegistry.ts
       store/        editorStore.ts
-scripts/            prepare-model.mjs, verify-model.mjs
+scripts/            prepare-model.mjs, verify-model.mjs, verify-shader.mjs
 public/models/      forearm.glb, fullarm.glb
 openspec/           spec-driven development artifacts
 ```
@@ -116,6 +158,9 @@ That is not cosmetic. `<Decal>` positions live in the parent mesh's local space 
 | `pnpm preview` | Serve the production build |
 | `pnpm prepare:model <in> <out.glb>` | Convert a downloaded model into a shippable GLB |
 | `pnpm verify:model <glb...>` | Assert a GLB is loadable and correctly normalized (exits non-zero on failure) |
+| `pnpm verify:shader` | Assert the ink shader's injection anchors still exist in three's source |
+
+`verify:shader` is not ceremony. `onBeforeCompile` patches shaders with `String.replace()`, and a missed anchor returns the string untouched and reports nothing — build, types and lint all pass while the tattoo renders wrong. Run it after any three upgrade.
 
 Requires Node 24+ and pnpm 11.
 
@@ -143,17 +188,30 @@ Only **CC0** or **CC-BY**. `CC-BY-SA` is rejected (ShareAlike is viral and would
 
 ---
 
+## Sharing a session
+
+Sessions save to a **file**, not a link. That is a constraint, not a shortcut.
+
+TattooView has no backend, and the artwork is the bulk of a session — one 2048px design is megabytes once encoded, orders of magnitude past what any url can carry. A real share link means hosting other people's artwork somewhere, which is an account, a storage bill and a privacy decision.
+
+The file travels over WhatsApp, mail or Drive, which is how these conversations already happen. It also keeps the promise that a design never leaves the machine unless its owner sends it. See [sessionFile.ts](src/features/tattoo-editor/lib/sessionFile.ts).
+
+---
+
 ## Known limitations
 
+- **Multiply blending cannot lighten.** White and very pale ink are invisible against skin. Physically honest, still surprising.
 - **Texel stretch at grazing angles** is inherent to box projection. The fade hides it; it does not eliminate it. A higher-poly mesh would not help.
 - **Both bundled models are very low-poly** (3,533 and 2,135 triangles). Expect faceting, and a very small tattoo may intersect only a couple of triangles.
-- **Switching body part clears all designs** — placement coordinates only mean something on the limb they were recorded against.
+- **Switching body part clears all designs** — placement coordinates only mean something on the limb they were recorded against. Undo brings them back.
+- **Skin tones are eyeballed multipliers**, not measured values.
 
 ---
 
 ## Roadmap
 
-- High-resolution PNG export of the composed view (the canvas is already created with `preserveDrawingBuffer: true` for this).
+- Ageing simulation — how the tattoo reads at 2, 5 and 10 years.
+- Contact sheet: the four captured angles composited into one image.
 - Mobile build via Capacitor.
 - More body parts.
 

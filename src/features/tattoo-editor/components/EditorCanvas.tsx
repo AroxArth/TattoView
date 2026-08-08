@@ -6,7 +6,9 @@ import { toast } from 'sonner'
 
 import { BodyModel } from '@/features/body-model/components/BodyModel'
 import { getModel } from '@/features/body-model/model-catalog'
+import { CaptureRig } from '@/features/tattoo-editor/components/CaptureRig'
 import { TattooDecal } from '@/features/tattoo-editor/components/TattooDecal'
+import { GROUND_SHADOW_NAME } from '@/features/tattoo-editor/lib/captureCanvas'
 import { findDesignAtPoint, surfaceHit } from '@/features/tattoo-editor/lib/surfacePlacement'
 import { useEditorStore } from '@/features/tattoo-editor/store/editorStore'
 
@@ -124,8 +126,16 @@ function Scene() {
         ))}
       </BodyModel>
 
-      <ContactShadows position={[0, -1.25, 0]} opacity={0.4} scale={7} blur={2.6} far={3} />
+      <ContactShadows
+        name={GROUND_SHADOW_NAME}
+        position={[0, -1.25, 0]}
+        opacity={0.4}
+        scale={7}
+        blur={2.6}
+        far={3}
+      />
       <OrbitControls makeDefault enablePan={false} minDistance={1.2} maxDistance={7} />
+      <CaptureRig />
     </>
   )
 }
@@ -143,9 +153,11 @@ export function EditorCanvas() {
     <Canvas
       shadows
       camera={{ position: [0, 0.2, 3.4], fov: 42 }}
-      // Needed so the viewport can be exported to PNG later: without preserving
-      // the buffer, toDataURL returns a blank image after the frame is presented.
-      gl={{ preserveDrawingBuffer: true, antialias: true }}
+      // preserveDrawingBuffer: without it the drawing buffer is cleared once the
+      // frame is presented and toBlob returns a blank image.
+      // alpha: required for transparent PNG capture — an opaque context has no
+      // alpha channel to write, and the backdrop would come out black.
+      gl={{ preserveDrawingBuffer: true, antialias: true, alpha: true }}
     >
       <color attach="background" args={['#121215']} />
       <Suspense fallback={<LoadingIndicator />}>

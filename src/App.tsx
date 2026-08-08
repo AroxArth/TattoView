@@ -1,7 +1,10 @@
 import { DesignPanel } from '@/features/tattoo-editor/components/DesignPanel'
 import { EditorCanvas } from '@/features/tattoo-editor/components/EditorCanvas'
+import { useHistoryShortcuts } from '@/features/tattoo-editor/hooks/useHistoryShortcuts'
 
 export function App() {
+  useHistoryShortcuts()
+
   return (
     <div className="flex h-full w-full">
       <DesignPanel />

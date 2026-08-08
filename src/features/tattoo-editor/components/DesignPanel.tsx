@@ -4,11 +4,27 @@ import { toast } from 'sonner'
 
 import { ModelCredits } from '@/features/body-model/components/ModelCredits'
 import { BODY_MODELS, getModel } from '@/features/body-model/model-catalog'
+import { SKIN_TONES } from '@/features/body-model/skin-tones'
+import { CapturePanel } from '@/features/tattoo-editor/components/CapturePanel'
 import { DesignPreviewDialog } from '@/features/tattoo-editor/components/DesignPreviewDialog'
 import type { AcceptedDesign } from '@/features/tattoo-editor/components/DesignPreviewDialog'
+import { SessionActions } from '@/features/tattoo-editor/components/SessionActions'
 import { useCmPerUnit, useEditorStore } from '@/features/tattoo-editor/store/editorStore'
 
 const ACCEPTED_TYPES = ['image/png', 'image/webp', 'image/jpeg']
+
+/**
+ * Rough mid tone of the bundled skin textures, used only to preview a tint in the
+ * picker swatches. The real tint is applied to the full texture in the material.
+ */
+const BASE_SKIN_RGB = [206, 158, 126]
+
+function swatchColor(tint: [number, number, number]): string {
+  const channels = BASE_SKIN_RGB.map((channel, index) =>
+    Math.round(Math.min(255, channel * tint[index])),
+  )
+  return `rgb(${channels.join(' ')})`
+}
 
 export function DesignPanel() {
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -19,6 +35,8 @@ export function DesignPanel() {
   const isPlacing = useEditorStore((s) => s.isPlacing)
   const modelId = useEditorStore((s) => s.modelId)
   const setModelId = useEditorStore((s) => s.setModelId)
+  const skinToneId = useEditorStore((s) => s.skinToneId)
+  const setSkinToneId = useEditorStore((s) => s.setSkinToneId)
   const referenceLengthCm = useEditorStore((s) => s.referenceLengthCm)
   const addDesign = useEditorStore((s) => s.addDesign)
   const removeDesign = useEditorStore((s) => s.removeDesign)
@@ -79,6 +97,28 @@ export function DesignPanel() {
             >
               {entry.label}
             </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <h2 className="text-xs font-medium uppercase tracking-wide text-ink-400">Skin tone</h2>
+        <div className="flex gap-1.5">
+          {SKIN_TONES.map((tone) => (
+            <button
+              key={tone.id}
+              type="button"
+              onClick={() => setSkinToneId(tone.id)}
+              title={tone.label}
+              aria-label={tone.label}
+              aria-pressed={tone.id === skinToneId}
+              className={`h-7 flex-1 rounded-md border transition ${
+                tone.id === skinToneId
+                  ? 'border-accent ring-1 ring-accent'
+                  : 'border-ink-700 hover:border-ink-400'
+              }`}
+              style={{ backgroundColor: swatchColor(tone.tint) }}
+            />
           ))}
         </div>
       </section>
@@ -187,7 +227,7 @@ export function DesignPanel() {
 
           <label className="flex flex-col gap-1.5 text-xs">
             <span className="flex justify-between text-ink-400">
-              Ink opacity
+              Ink density
               <span>{Math.round(selected.opacity * 100)}%</span>
             </span>
             <input
@@ -200,8 +240,32 @@ export function DesignPanel() {
               className="accent-accent"
             />
           </label>
+
+          <label className="flex flex-col gap-1.5 text-xs">
+            <span className="flex justify-between text-ink-400">
+              Ink depth
+              <span>{selected.inkDepth < 0.34 ? 'Fresh' : selected.inkDepth < 0.7 ? 'Healed' : 'Settled'}</span>
+            </span>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.01}
+              value={selected.inkDepth}
+              onChange={(e) => updateSelected({ inkDepth: Number(e.target.value) })}
+              className="accent-accent"
+            />
+            <span className="text-[11px] leading-snug text-ink-400">
+              How far the pigment sits under the epidermis. Deeper ink loses saturation and shifts
+              toward blue-grey, the way healed work does.
+            </span>
+          </label>
         </section>
       )}
+
+      <CapturePanel />
+
+      <SessionActions />
 
       <section className="mt-auto flex flex-col gap-2 border-t border-ink-700 pt-4">
         <h2 className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-ink-400">

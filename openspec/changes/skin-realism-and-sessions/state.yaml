@@ -1,0 +1,56 @@
+change: skin-realism-and-sessions
+artifact_store: openspec
+execution_mode: auto
+delivery_strategy: ask-on-risk
+created: 2026-08-07
+
+phases:
+  explore:
+    status: skipped
+    note: >-
+      Scope came directly from the user, who picked five items off a shortlist.
+      The only open investigation was three's blending and chunk order, which was
+      read from source during apply and is now locked down by verify:shader.
+  proposal:
+    status: done
+    artifact: proposal.md
+  specs:
+    status: done
+    artifact: specs/tattoo-editor/spec.md
+  design:
+    status: skipped
+    note: >-
+      The load-bearing decisions live as file headers next to the code they
+      constrain — inkMaterial.ts, textureRegistry.ts, sessionFile.ts. A separate
+      design doc would have gone stale away from the shader it describes.
+  tasks:
+    status: done
+    artifact: tasks.md
+  apply:
+    status: done
+    note: >-
+      All five features implemented. Found and fixed a pre-existing colour
+      management bug on the way: design textures defaulted to NoColorSpace while
+      the skin was sRGB, so the artwork rendered lighter than the file. Harmless
+      under the old lit decal, visible under an exact multiply.
+  verify:
+    status: partial
+    note: >-
+      build, lint, verify:model and the new verify:shader all pass. Visual
+      confirmation is outstanding and can only be done by the user, who runs the
+      dev server themselves.
+  archive:
+    status: pending
+
+next_recommended: verify
+
+blockers: []
+
+open_questions:
+  - >-
+    Is a default ink depth of 0.55 too aggressive for colour work? Black work
+    reads correctly at that value; saturated colour may need a lower default.
+  - >-
+    White and very pale ink are invisible under a multiply blend. Physically
+    correct, but it may need an explicit note in the UI rather than a silent
+    surprise.

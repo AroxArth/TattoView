@@ -1,20 +1,14 @@
-import { useCallback, useEffect, useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Decal, useTexture } from '@react-three/drei'
-import { Vector3 } from 'three'
-import type { WebGLProgramParametersWithUniforms } from 'three'
+import { MultiplyBlending, SRGBColorSpace } from 'three'
 
 import type { TattooDesign } from '@/features/tattoo-editor/store/editorStore'
+import {
+  createInkUniforms,
+  inkShaderPatch,
+  INK_PROGRAM_CACHE_KEY,
+} from '@/features/tattoo-editor/lib/inkMaterial'
 import { decalRotation, projectionDepth } from '@/features/tattoo-editor/lib/surfacePlacement'
-
-/**
- * Distinguishes this program from a stock MeshStandardMaterial.
- *
- * three caches compiled programs by material parameters and does NOT account for
- * `onBeforeCompile`. The body skin is also a MeshStandardMaterial, so without a
- * distinct key the two could share one program and the fade would land on the
- * skin, or never land at all.
- */
-const PROGRAM_CACHE_KEY = () => 'tattoo-decal-projection-fade'
 
 interface TattooDecalProps {
   design: TattooDesign
@@ -25,63 +19,46 @@ interface TattooDecalProps {
  *
  * Must be rendered as a direct child of the target `<mesh>`: `<Decal>` reads the
  * parent geometry to build the clipped projection.
+ *
+ * The ink model lives in `inkMaterial.ts` — read the header there before changing
+ * any material flag on this component. The three blending flags are a package.
  */
 export function TattooDecal({ design }: TattooDecalProps) {
   const texture = useTexture(design.textureUrl)
+
+  /**
+   * three's Texture defaults to NoColorSpace and drei's `useTexture` does not
+   * change it, so an sRGB-encoded PNG was being fed to the shader as if its values
+   * were already linear — the artwork rendered lighter than the file.
+   *
+   * The skin does not have this problem: GLTFLoader marks base colour textures as
+   * sRGB. So the two were being decoded under different rules, which a multiply
+   * blend turns into a visible error rather than a subtle one.
+   *
+   * Set during render rather than in an effect: colour space feeds into the
+   * program parameters, so it has to be right before the material first compiles.
+   */
+  useMemo(() => {
+    if (texture.colorSpace === SRGBColorSpace) return
+    texture.colorSpace = SRGBColorSpace
+    texture.needsUpdate = true
+  }, [texture])
+
   const rotation = useMemo(
     () => decalRotation(design.normal, design.roll),
     [design.normal, design.roll],
   )
 
-  /**
-   * Projection axis in WORLD space, fed to the shader as a uniform.
-   *
-   * It cannot be derived from the decal's own matrix: drei consumes `position`,
-   * `rotation` and `scale` to *build* the DecalGeometry and leaves the mesh at
-   * identity, with the geometry baked into the parent's space. Reading
-   * `normalMatrix * vec3(0,0,1)` therefore yields the camera's axis, not the
-   * projector's — which faded the artwork according to viewing angle.
-   *
-   * The design's stored surface normal is the projection axis by definition, and
-   * the body mesh is at identity transform, so this world vector needs no
-   * conversion beyond the view matrix inside the shader.
-   */
-  const projectionAxis = useMemo(() => ({ value: new Vector3(0, 0, 1) }), [])
+  // Created once and mutated in place: three keeps the reference it was handed at
+  // compile time, so swapping the object stops the shader updating.
+  const uniforms = useMemo(() => createInkUniforms(), [])
+  const patch = useMemo(() => inkShaderPatch(uniforms), [uniforms])
 
   useEffect(() => {
-    projectionAxis.value.set(design.normal[0], design.normal[1], design.normal[2]).normalize()
-  }, [design.normal, projectionAxis])
-
-  /**
-   * Fades the decal out where the skin turns away from the projection axis.
-   *
-   * `DecalGeometry` is a box projection: the texture is cast along one axis like a
-   * slide projector. Where the surface rotates away from that axis each texel
-   * covers progressively more skin, approaching infinite stretch as the normal
-   * turns perpendicular. This is projection maths, not mesh resolution — a denser
-   * mesh smears identically. The only real fix is to stop drawing where the
-   * projection stops being valid.
-   */
-  const applyProjectionFade = useCallback(
-    (shader: WebGLProgramParametersWithUniforms) => {
-      shader.uniforms.uProjAxis = projectionAxis
-
-      shader.vertexShader = `uniform vec3 uProjAxis;\nvarying vec3 vProjAxis;\n${shader.vertexShader}`.replace(
-        '#include <begin_vertex>',
-        `#include <begin_vertex>
-         vProjAxis = normalize(mat3(viewMatrix) * uProjAxis);`,
-      )
-
-      shader.fragmentShader = `varying vec3 vProjAxis;\n${shader.fragmentShader}`.replace(
-        '#include <opaque_fragment>',
-        `float facing = dot(normalize(normal), normalize(vProjAxis));
-         diffuseColor.a *= smoothstep(0.02, 0.30, facing);
-         if (diffuseColor.a < 0.01) discard;
-         #include <opaque_fragment>`,
-      )
-    },
-    [projectionAxis],
-  )
+    uniforms.uProjAxis.value.set(design.normal[0], design.normal[1], design.normal[2]).normalize()
+    uniforms.uDepth.value = design.inkDepth
+    uniforms.uDensity.value = design.opacity
+  }, [design.normal, design.inkDepth, design.opacity, uniforms])
 
   // Before the first placement the design has no anchor; projecting from the
   // origin would smear it through the middle of the limb.
@@ -106,11 +83,21 @@ export function TattooDecal({ design }: TattooDecalProps) {
       <meshStandardMaterial
         map={texture}
         transparent
-        opacity={design.opacity}
+        // Density is applied inside the shader as `coverage`. Leaving opacity at 1
+        // keeps `diffuseColor.a` equal to the texture's own alpha, so the two do
+        // not multiply each other twice.
+        opacity={1}
         roughness={0.65}
         metalness={0}
-        onBeforeCompile={applyProjectionFade}
-        customProgramCacheKey={PROGRAM_CACHE_KEY}
+        blending={MultiplyBlending}
+        // Not optional: three refuses to set a blend function for MultiplyBlending
+        // unless the material is premultiplied.
+        premultipliedAlpha
+        // ACES maps 1.0 to ~0.8. Tone mapping a multiply factor would grey out the
+        // whole limb through every transparent texel.
+        toneMapped={false}
+        onBeforeCompile={patch}
+        customProgramCacheKey={INK_PROGRAM_CACHE_KEY}
         // Ink sits in the skin, so overlapping designs must not carve holes in
         // each other's depth.
         depthWrite={false}
