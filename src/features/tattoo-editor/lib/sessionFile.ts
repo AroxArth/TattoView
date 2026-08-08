@@ -35,6 +35,8 @@ interface SerializedDesign {
   normal: [number, number, number]
   roll: number
   widthUnits: number
+  heightUnits: number
+  lockAspect: boolean
   opacity: number
   inkDepth: number
   mirrored: boolean
@@ -84,6 +86,8 @@ export async function serializeSession(document: EditorDocument): Promise<Sessio
       normal: design.normal,
       roll: design.roll,
       widthUnits: design.widthUnits,
+      heightUnits: design.heightUnits,
+      lockAspect: design.lockAspect,
       opacity: design.opacity,
       inkDepth: design.inkDepth,
       mirrored: design.mirrored,
@@ -183,7 +187,14 @@ export async function parseSession(text: string): Promise<EditorDocument> {
       roll: design.roll,
       widthUnits: design.widthUnits,
       opacity: design.opacity,
-      // Defaults cover sessions saved before these fields existed.
+      // Defaults cover sessions saved before these fields existed. A file written
+      // before designs could be stretched had its height locked to the intrinsic
+      // ratio, so deriving it reproduces exactly what its author saw.
+      heightUnits:
+        typeof design.heightUnits === 'number'
+          ? design.heightUnits
+          : design.widthUnits / design.aspect,
+      lockAspect: design.lockAspect !== false,
       inkDepth: typeof design.inkDepth === 'number' ? design.inkDepth : 0.55,
       mirrored: design.mirrored === true,
       isPlaced: design.isPlaced,

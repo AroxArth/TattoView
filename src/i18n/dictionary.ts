@@ -56,7 +56,10 @@ const es = {
 
   // Adjustments
   'panel.adjust': 'Ajustes',
-  'adjust.size': 'Tamaño',
+  'adjust.width': 'Ancho',
+  'adjust.height': 'Alto',
+  'adjust.lockAspect': 'Proporción',
+  'adjust.restoreProportions': 'Restaurar la proporción original del archivo',
   'adjust.rotation': 'Rotación',
   'adjust.density': 'Densidad de tinta',
   'adjust.depth': 'Profundidad de tinta',
@@ -175,7 +178,10 @@ const en: Record<TranslationKey, string> = {
   'panel.remove': 'Remove',
 
   'panel.adjust': 'Adjust',
-  'adjust.size': 'Size',
+  'adjust.width': 'Width',
+  'adjust.height': 'Height',
+  'adjust.lockAspect': 'Proportions',
+  'adjust.restoreProportions': "Restore the file's original proportions",
   'adjust.rotation': 'Rotation',
   'adjust.density': 'Ink density',
   'adjust.depth': 'Ink depth',

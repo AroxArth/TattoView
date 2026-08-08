@@ -26,8 +26,18 @@ export interface TattooDesign {
   normal: [number, number, number]
   /** Rotation around the surface normal, in radians. */
   roll: number
-  /** Width of the decal in world units. Height is derived from `aspect`. */
+  /** Width of the decal in world units. */
   widthUnits: number
+  /**
+   * Height of the decal in world units.
+   *
+   * Stored independently rather than derived from `aspect` so a design can be
+   * stretched. `aspect` is kept as the file's intrinsic ratio, which is what
+   * `Restore proportions` returns to.
+   */
+  heightUnits: number
+  /** While true, changing one dimension scales the other by the same factor. */
+  lockAspect: boolean
   /** Pigment density, 0..1. Fed to the ink shader as coverage. */
   opacity: number
   /** How deep the pigment sits, 0..1. Drives desaturation and the dermis tint. */
@@ -75,6 +85,9 @@ interface HistoryEntry {
  */
 const MERGE_WINDOW_MS = 600
 
+/** Starting width of a newly added design, in world units. */
+const DEFAULT_WIDTH_UNITS = 0.25
+
 /** Bounds memory, and bounds how long a deleted texture stays reachable. */
 const HISTORY_LIMIT = 60
 
@@ -112,7 +125,16 @@ interface EditorState extends EditorDocument {
   ) => void
   updateSelected: (
     patch: Partial<
-      Pick<TattooDesign, 'widthUnits' | 'opacity' | 'roll' | 'inkDepth' | 'mirrored'>
+      Pick<
+        TattooDesign,
+        | 'widthUnits'
+        | 'heightUnits'
+        | 'lockAspect'
+        | 'opacity'
+        | 'roll'
+        | 'inkDepth'
+        | 'mirrored'
+      >
     >,
   ) => void
   setModelLengthUnits: (length: number) => void
@@ -230,7 +252,9 @@ export const useEditorStore = create<EditorState>((set, get) => {
             position: [0, 0, 0],
             normal: [0, 0, 1],
             roll: 0,
-            widthUnits: 0.25,
+            widthUnits: DEFAULT_WIDTH_UNITS,
+            heightUnits: DEFAULT_WIDTH_UNITS / design.aspect,
+            lockAspect: true,
             opacity: 0.9,
             inkDepth: 0.55,
             mirrored: false,
@@ -278,7 +302,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
       // Merging exists for sliders, which emit a burst of values on one gesture.
       // A discrete toggle is a whole decision per click: collapsing two of them
       // into one entry makes the first Ctrl+Z look like it did nothing.
-      const isDiscrete = keys.includes('mirrored')
+      const isDiscrete = keys.includes('mirrored') || keys.includes('lockAspect')
 
       commit(
         (state) => ({

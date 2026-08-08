@@ -20,7 +20,7 @@ Then, in the app:
 1. Pick a body part (**Forearm** or **Full arm**) and a **skin tone**.
 2. **Upload design** → a preview dialog opens. Toggle background removal if your file has one, then Accept.
 3. Click on the skin to anchor the tattoo.
-4. Adjust size, rotation, mirror, ink density and ink depth in the left panel.
+4. Adjust width, height, rotation, mirror, ink density and ink depth in the left panel. The **Proportions** lock scales both dimensions together; release it to stretch the design freely.
 5. Enter your real measurement (e.g. elbow-to-fingertips in cm) to see the tattoo's true size.
 6. **Photo** → pick a backdrop and save the view, or four angles at once.
 7. **Save session** → one file with the placement and the artwork inside, to send to your artist.
@@ -44,7 +44,7 @@ Viewport controls: **double click** a tattoo to grab it, move the pointer, click
 
 **No Next.js, deliberately.** TattooView is 100% client-side WebGL: nothing renders on a server, a 3D editor has no SEO surface, and the mobile target (Capacitor) needs a static SPA build. SSR would buy complexity and nothing else.
 
-**No i18n runtime either.** See [Language](#language) for why 87 keys did not justify a library.
+**No i18n runtime either.** See [Language](#language) for why 90 keys did not justify a library.
 
 ---
 
@@ -70,6 +70,14 @@ Designs are therefore stored as `normal` + `roll`, never as a baked euler: the n
 Flipping a design for the other arm looks like a job for `scale.x = -1`. It is not. `DecalGeometry` **consumes** the scale to build its projector box, so a negative axis inverts the projection itself — the artwork lands reversed *and* the clipped geometry is built inside out.
 
 So the mirror flips the texture's own `u` instead: `repeat.x = -1`, `offset.x = 1`, which maps `u` to `1 - u`. The projection is untouched; only the image on it reverses.
+
+### Width and height are two dimensions, not one scale
+
+The decal stores `widthUnits` and `heightUnits` separately, and keeps the file's intrinsic `aspect` alongside them. Stretching is therefore real state rather than a derived factor — and **restore proportions** can always get back to the original ratio, because that ratio was never lost.
+
+With the lock on, the ratio preserved is the **current** one, not the file's: stretch deliberately and then scale, and the stretch survives. At the ends of the range the link gives way rather than letting a dimension leave the slider — clamping is visible, an off-scale value is not.
+
+Projection box depth now derives from `max(width, height)`: a design stretched tall needs a deeper box or it would clip against the surface.
 
 ### Ink lives under the skin, not on it
 
@@ -132,7 +140,7 @@ Default tolerance is `0.08`, calibrated to keep pale yellow and pale pink alive 
 
 **Spanish is the default, and it is not negotiated with the browser.** A visitor whose laptop reports `en-US` still lands in Spanish. What the browser reports is a guess about a person; guessing wrong on the very first screen is worse than being predictable. An explicit choice is stored in `localStorage` and always wins.
 
-[src/i18n/dictionary.ts](src/i18n/dictionary.ts) holds all 87 strings, and **Spanish is the source of truth**:
+[src/i18n/dictionary.ts](src/i18n/dictionary.ts) holds all 90 strings, and **Spanish is the source of truth**:
 
 ```ts
 const es = { /* written freely */ }
@@ -142,7 +150,7 @@ const en: Record<TranslationKey, string> = { /* completeness enforced by the com
 
 Adding a Spanish key without its English counterpart is a **build error**, not a blank label found by a user.
 
-No i18n library. 87 keys across eleven components did not justify a runtime, an ICU parser or plural rules — the whole implementation is a typed object, a zustand store and a `useT()` hook.
+No i18n library. 90 keys across eleven components did not justify a runtime, an ICU parser or plural rules — the whole implementation is a typed object, a zustand store and a `useT()` hook.
 
 ### What types cannot catch, `pnpm verify:i18n` does
 

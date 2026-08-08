@@ -84,13 +84,13 @@ export function TattooDecal({ design }: TattooDecalProps) {
   if (!design.isPlaced) return null
 
   const width = design.widthUnits
-  const height = width / design.aspect
+  const height = design.heightUnits
 
   return (
     <Decal
       position={design.position}
       rotation={rotation}
-      scale={[width, height, projectionDepth(width)]}
+      scale={[width, height, projectionDepth(width, height)]}
       // These three MUST be passed to Decal, not to the material below. drei sets
       // them via `material-*` props on its own mesh, which overwrite whatever the
       // child material declares. Its default `depthTest={false}` is what made

@@ -1,5 +1,14 @@
 import { useRef, useState } from 'react'
-import { Crosshair, FlipHorizontal2, ImagePlus, Ruler, Trash2 } from 'lucide-react'
+import {
+  Crosshair,
+  FlipHorizontal2,
+  ImagePlus,
+  Link2,
+  RotateCcw,
+  Ruler,
+  Trash2,
+  Unlink2,
+} from 'lucide-react'
 import { toast } from 'sonner'
 
 import { ModelCredits } from '@/features/body-model/components/ModelCredits'
@@ -20,6 +29,12 @@ import { useT } from '@/i18n'
 import type { TranslationKey } from '@/i18n'
 
 const ACCEPTED_TYPES = ['image/png', 'image/webp', 'image/jpeg']
+
+/** Slider bounds for either decal dimension, in world units. */
+const DIMENSION_MIN = 0.04
+const DIMENSION_MAX = 1.2
+
+const clampDimension = (value: number) => Math.min(DIMENSION_MAX, Math.max(DIMENSION_MIN, value))
 
 /**
  * Rough mid tone of the bundled skin textures, used only to preview a tint in the
@@ -80,7 +95,32 @@ export function DesignPanel() {
   }
 
   const widthCm = selected && cmPerUnit ? selected.widthUnits * cmPerUnit : null
-  const heightCm = widthCm && selected ? widthCm / selected.aspect : null
+  const heightCm = selected && cmPerUnit ? selected.heightUnits * cmPerUnit : null
+
+  /**
+   * Drives one dimension, and the other with it while the aspect is locked.
+   *
+   * The ratio preserved is the CURRENT one, not the file's intrinsic aspect — so
+   * locking after a deliberate stretch keeps that stretch instead of undoing it.
+   * At the ends of the range the link gives way rather than letting a dimension
+   * leave the slider: clamping is visible, an off-scale value is not.
+   */
+  function resize(axis: 'widthUnits' | 'heightUnits', value: number) {
+    if (!selected) return
+
+    const current = selected[axis]
+    if (!selected.lockAspect || current <= 0) {
+      updateSelected(axis === 'widthUnits' ? { widthUnits: value } : { heightUnits: value })
+      return
+    }
+
+    const factor = value / current
+    updateSelected(
+      axis === 'widthUnits'
+        ? { widthUnits: value, heightUnits: clampDimension(selected.heightUnits * factor) }
+        : { heightUnits: value, widthUnits: clampDimension(selected.widthUnits * factor) },
+    )
+  }
 
   return (
     <aside className="flex h-full w-80 shrink-0 flex-col gap-5 overflow-y-auto border-r border-ink-700 bg-ink-900 p-5">
@@ -211,19 +251,62 @@ export function DesignPanel() {
 
           <label className="flex flex-col gap-1.5 text-xs">
             <span className="flex justify-between text-ink-400">
-              {t('adjust.size')}
-              <span>{widthCm ? `${widthCm.toFixed(1)} × ${heightCm?.toFixed(1)} cm` : '—'}</span>
+              {t('adjust.width')}
+              <span>{widthCm ? `${widthCm.toFixed(1)} cm` : '—'}</span>
             </span>
             <input
               type="range"
-              min={0.04}
-              max={1.2}
+              min={DIMENSION_MIN}
+              max={DIMENSION_MAX}
               step={0.01}
               value={selected.widthUnits}
-              onChange={(e) => updateSelected({ widthUnits: Number(e.target.value) })}
+              onChange={(e) => resize('widthUnits', Number(e.target.value))}
               className="accent-accent"
             />
           </label>
+
+          <label className="flex flex-col gap-1.5 text-xs">
+            <span className="flex justify-between text-ink-400">
+              {t('adjust.height')}
+              <span>{heightCm ? `${heightCm.toFixed(1)} cm` : '—'}</span>
+            </span>
+            <input
+              type="range"
+              min={DIMENSION_MIN}
+              max={DIMENSION_MAX}
+              step={0.01}
+              value={selected.heightUnits}
+              onChange={(e) => resize('heightUnits', Number(e.target.value))}
+              className="accent-accent"
+            />
+          </label>
+
+          <div className="flex gap-1.5 text-xs">
+            <button
+              type="button"
+              onClick={() => updateSelected({ lockAspect: !selected.lockAspect })}
+              aria-pressed={selected.lockAspect}
+              className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-2 py-1.5 transition ${
+                selected.lockAspect
+                  ? 'border-accent bg-ink-800 text-white'
+                  : 'border-ink-700 text-ink-400 hover:text-white'
+              }`}
+            >
+              {selected.lockAspect ? <Link2 size={13} /> : <Unlink2 size={13} />}
+              {t('adjust.lockAspect')}
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                updateSelected({ heightUnits: selected.widthUnits / selected.aspect })
+              }
+              title={t('adjust.restoreProportions')}
+              aria-label={t('adjust.restoreProportions')}
+              className="rounded-lg border border-ink-700 px-2.5 py-1.5 text-ink-400 transition hover:border-accent hover:text-white"
+            >
+              <RotateCcw size={13} />
+            </button>
+          </div>
 
           <label className="flex flex-col gap-1.5 text-xs">
             <span className="flex justify-between text-ink-400">

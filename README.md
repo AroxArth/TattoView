@@ -20,7 +20,7 @@ Y ya dentro de la app:
 1. Elige la zona del cuerpo (**Antebrazo** o **Brazo completo**) y un **tono de piel**.
 2. **Subir diseño** → se abre una vista previa. Activa el quitado de fondo si tu archivo lo necesita, y acepta.
 3. Haz clic sobre la piel para anclar el tatuaje.
-4. Ajusta tamaño, rotación, espejo, densidad y profundidad de tinta en el panel izquierdo.
+4. Ajusta ancho, alto, rotación, espejo, densidad y profundidad de tinta en el panel izquierdo. El candado de **Proporción** escala las dos dimensiones juntas; suéltalo para estirar el diseño a voluntad.
 5. Introduce tu medida real (por ejemplo, del codo a la punta de los dedos en cm) para ver el tamaño verdadero.
 6. **Foto** → elige un fondo y guarda la vista, o cuatro ángulos de una vez.
 7. **Guardar sesión** → un archivo con la colocación y la obra dentro, para mandárselo a tu tatuador.
@@ -44,7 +44,7 @@ Controles del visor: **doble clic** sobre un tatuaje para tomarlo, mueve el punt
 
 **Sin Next.js, a propósito.** TattooView es WebGL 100% del lado del cliente: no se renderiza nada en un servidor, un editor 3D no tiene superficie SEO, y el objetivo móvil (Capacitor) necesita un build SPA estático. SSR compraría complejidad y nada más.
 
-**Tampoco hay librería de i18n.** En [Idioma](#idioma) está el porqué 87 claves no justificaron una dependencia.
+**Tampoco hay librería de i18n.** En [Idioma](#idioma) está el porqué 90 claves no justificaron una dependencia.
 
 ---
 
@@ -70,6 +70,14 @@ Por eso los diseños se guardan como `normal` + `roll`, nunca como un euler horn
 Voltear un diseño para el otro brazo parece trabajo de `scale.x = -1`. No lo es. `DecalGeometry` **consume** la escala para construir su caja de proyección, así que un eje negativo invierte la proyección misma — la obra aterriza al revés *y* la geometría recortada se construye del revés.
 
 Por eso el espejo voltea la propia `u` de la textura: `repeat.x = -1`, `offset.x = 1`, que mapea `u` a `1 - u`. La proyección queda intacta; solo se invierte la imagen que va sobre ella.
+
+### Ancho y alto son dos dimensiones, no una escala
+
+El decal guarda `widthUnits` y `heightUnits` por separado, y conserva el `aspect` intrínseco del archivo aparte. Estirar es entonces un estado real, no un factor derivado — y el botón de **restaurar proporción** siempre puede volver al ratio original porque nunca se perdió.
+
+Con el candado puesto se preserva la proporción **actual**, no la del archivo: si estiraste a propósito y luego escalas, el estirado se mantiene. En los extremos del rango el vínculo cede en lugar de dejar que una dimensión se salga del deslizador — recortar se ve, un valor fuera de escala no.
+
+La profundidad de la caja de proyección pasó a derivarse de `max(ancho, alto)`: un diseño estirado a lo alto necesita una caja más profunda o se recortaría contra la superficie.
 
 ### La tinta vive bajo la piel, no encima
 
@@ -132,7 +140,7 @@ La tolerancia por defecto es `0.08`, calibrada para que el amarillo y el rosa p�
 
 **El español es el predeterminado, y no se negocia con el navegador.** Alguien cuya laptop reporta `en-US` igual aterriza en español. Lo que el navegador reporta es una conjetura sobre una persona; equivocarse en la primerísima pantalla es peor que ser predecible. Una elección explícita se guarda en `localStorage` y siempre gana.
 
-[src/i18n/dictionary.ts](src/i18n/dictionary.ts) tiene las 87 cadenas, y **el español es la fuente de verdad**:
+[src/i18n/dictionary.ts](src/i18n/dictionary.ts) tiene las 90 cadenas, y **el español es la fuente de verdad**:
 
 ```ts
 const es = { /* escrito con libertad */ }
@@ -142,7 +150,7 @@ const en: Record<TranslationKey, string> = { /* el compilador exige que esté co
 
 Agregar una clave en español sin su contraparte en inglés es un **error de compilación**, no una etiqueta en blanco que descubre un usuario.
 
-Sin librería de i18n. 87 claves repartidas en once componentes no justificaban un runtime, un parser de ICU ni reglas de plural — toda la implementación es un objeto tipado, un store de zustand y un hook `useT()`.
+Sin librería de i18n. 90 claves repartidas en once componentes no justificaban un runtime, un parser de ICU ni reglas de plural — toda la implementación es un objeto tipado, un store de zustand y un hook `useT()`.
 
 ### Lo que los tipos no pueden ver, lo ve `pnpm verify:i18n`
 

@@ -79,14 +79,14 @@ export function decalRotation(
  * Kept shallow on purpose: a box deep enough to reach the far side of a limb
  * makes the design bleed through and appear mirrored on the back of the arm.
  */
-export function projectionDepth(widthUnits: number): number {
-  return Math.max(0.06, widthUnits * 0.5)
+export function projectionDepth(widthUnits: number, heightUnits: number): number {
+  return Math.max(0.06, Math.max(widthUnits, heightUnits) * 0.5)
 }
 
 interface Grabbable {
   position: [number, number, number]
   widthUnits: number
-  aspect: number
+  heightUnits: number
 }
 
 /**
@@ -110,8 +110,7 @@ export function findDesignAtPoint<T extends Grabbable>(
   let bestRadius = Infinity
 
   for (const design of designs) {
-    const height = design.widthUnits / design.aspect
-    const radius = Math.max(design.widthUnits, height) / 2
+    const radius = Math.max(design.widthUnits, design.heightUnits) / 2
 
     const dx = point[0] - design.position[0]
     const dy = point[1] - design.position[1]

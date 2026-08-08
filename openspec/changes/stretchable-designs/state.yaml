@@ -1,0 +1,52 @@
+change: stretchable-designs
+artifact_store: openspec
+execution_mode: auto
+delivery_strategy: ask-on-risk
+created: 2026-08-07
+
+phases:
+  explore:
+    status: skipped
+    note: Small, well-understood change requested directly by the user.
+  proposal:
+    status: done
+    artifact: proposal.md
+  specs:
+    status: done
+    artifact: specs/tattoo-editor/spec.md
+  design:
+    status: skipped
+    note: >-
+      The reasoning is short enough to live in the proposal and in the `resize`
+      docstring beside the code it governs.
+  tasks:
+    status: done
+    artifact: tasks.md
+  apply:
+    status: done
+    note: >-
+      Two callers were quietly deriving height from `aspect` and would have gone
+      wrong the moment a design was stretched: `projectionDepth` sized the box from
+      width alone, so a tall design would clip; `findDesignAtPoint` measured the
+      grab radius the same way, so a stretched design would be ungrabbable over
+      part of itself. Both now read the real dimensions.
+  verify:
+    status: partial
+    note: >-
+      build, lint, verify:shader and verify:i18n all pass. verify:i18n earned its
+      keep here by flagging `adjust.size` as dead once the single slider was split.
+      Visual confirmation is outstanding; the user runs the dev server themselves.
+  archive:
+    status: pending
+
+next_recommended: verify
+
+blockers: []
+
+open_questions:
+  - >-
+    Should the sliders accept typed centimetre values? A tattoo artist works from
+    a number, and a slider makes hitting exactly 8.0 cm a matter of luck.
+  - >-
+    Should the restore-proportions button be disabled when the design is already at
+    its intrinsic ratio, rather than being a no-op?
