@@ -1,4 +1,6 @@
-allowBuilds:
-  sharp: set this to true or false
+# sharp ships prebuilt binaries for win32-x64, so its install script has nothing
+# left to do here. pnpm 11 treats an unapproved build script as a hard error and
+# exits 1 — which also kills `pnpm dev`, because the pre-run dependency check
+# shells out to `pnpm install`. Approving it explicitly is what makes that stop.
 onlyBuiltDependencies:
   - sharp

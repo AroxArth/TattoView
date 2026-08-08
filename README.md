@@ -180,6 +180,8 @@ What `prepare:model` fixes for you:
 - **`KHR_materials_pbrSpecularGlossiness` in `extensionsRequired`.** Sketchfab still exports it; three.js dropped it, and `GLTFLoader` *rejects* an asset whose required extension it cannot satisfy — the model would not load at all, not merely look grey. `metalRough()` rewrites the materials and clears the flag.
 - **The pnpm + sharp version mismatch.** The `gltf-transform` CLI resolves its own bundled sharp, which under pnpm can pair one release's JS with another release's libvips binary (`colourspace: parameter space not set`). The script passes an explicitly pinned `sharp` instance instead.
 
+The CLI package itself is **not a dependency**. It was the only thing pulling a second sharp release into the store, and a second sharp release means a second unapproved build script — which pnpm 11 treats as a hard error that also takes down `pnpm dev`, since the pre-run dependency check shells out to `pnpm install`. Nothing imports the CLI, so it is gone.
+
 Results so far: forearm 10.84 MB → 1.13 MB, full arm 4.2 MB → 0.47 MB (WebP q88).
 
 ### Licensing policy for assets
