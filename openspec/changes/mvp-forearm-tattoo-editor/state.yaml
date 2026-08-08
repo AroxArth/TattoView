@@ -1,0 +1,44 @@
+change: mvp-forearm-tattoo-editor
+artifact_store: openspec
+execution_mode: auto
+delivery_strategy: ask-on-risk
+created: 2026-08-07
+
+phases:
+  explore:
+    status: done
+    note: Stack selection and CC-BY model sourcing verified against the Sketchfab API.
+  proposal:
+    status: done
+    artifact: proposal.md
+  specs:
+    status: done
+    artifact: specs/tattoo-editor/spec.md
+  design:
+    status: done
+    artifact: design.md
+  tasks:
+    status: done
+    artifact: tasks.md
+  apply:
+    status: done
+    note: >-
+      Placeholder capsule removed. Both CC-BY models converted, normalized and
+      integrated. Credits dialog satisfies the CC-BY attribution obligation.
+  verify:
+    status: partial
+    note: >-
+      pnpm build passes; pnpm verify:model passes for both assets. Manual browser
+      confirmation of skin texture and decal wrap is still outstanding, and can
+      only be done by the user since they run the app themselves.
+  archive:
+    status: pending
+
+next_recommended: verify
+
+blockers: []
+
+open_questions:
+  - >-
+    Do small decals degenerate into flat quads on the 3,533-triangle forearm? If
+    so, apply TessellateModifier at load (task 7.2).

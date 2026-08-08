@@ -1,0 +1,48 @@
+schema: spec-driven
+
+context: |
+  Project: TattooView — 3D tattoo preview for tattoo artists and their clients.
+  Tech stack: Vite 8, React 19.2, TypeScript 6, Tailwind CSS 4 (@tailwindcss/vite),
+    three 0.185, @react-three/fiber 9.7, @react-three/drei 10.7, zustand 5,
+    lucide-react (icons), sonner (toasts). Package manager: pnpm.
+  Architecture: feature-sliced under src/features/<feature>/{components,lib,store}.
+    Container-presentational split; shared primitives under src/shared.
+    Path alias "@/*" -> "./src/*".
+  Rendering: designs are projected with three.js DecalGeometry via drei <Decal>,
+    which clips the real triangles of the body mesh. Mesh density therefore caps
+    wrap fidelity — a coarse mesh degenerates small tattoos into flat quads.
+  3D assets: CC-BY models from Sketchfab, stored in public/models as optimized .glb.
+    CC-BY REQUIRES a visible credits screen naming each author and the license.
+    CC-BY-SA and CC-BY-NC assets are forbidden: ShareAlike is viral and
+    NonCommercial blocks monetization.
+  Asset pipeline: @gltf-transform/cli (simplify / draco / resize). Blender is NOT
+    available and must never be a required step.
+  Target: browser first. Mobile (iOS/Android) later via Capacitor, which is why the
+    build must stay a static SPA — no SSR, no server runtime.
+  Testing: not yet configured.
+
+rules:
+  proposal:
+    - State the user-facing outcome before the technical approach
+    - Include a rollback plan for risky changes
+  specs:
+    - Use Given/When/Then for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+  design:
+    - Document architecture decisions with rationale and rejected alternatives
+    - Call out any constraint imposed by mesh topology or asset licensing
+  tasks:
+    - Group by phase, use hierarchical numbering
+    - Keep tasks completable in one session
+  apply:
+    - Follow existing feature-sliced patterns
+    - Never introduce a step that requires Blender
+    - All code, comments and UI copy in English
+    tdd: false
+    test_command: ''
+  verify:
+    test_command: ''
+    build_command: 'pnpm build'
+    coverage_threshold: 0
+  archive:
+    - Warn before merging destructive deltas
